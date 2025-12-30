@@ -4,49 +4,82 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Aluno extends Model
 {
     use HasFactory;
 
     /**
-     * Os atributos que podem ser atribuídos em massa.
-     *
-     * @var array<int, string>
+     * Define o nome da tabela (opcional se o nome for o plural do Model)
+     */
+    protected $table = 'alunos';
+
+    /**
+     * Atributos que podem ser preenchidos em massa (Mass Assignment).
+     * Devem corresponder exatamente aos nomes das colunas na migration.
      */
     protected $fillable = [
+        'matricula',
         'nome',
         'cpf',
-        'endereco',
         'data_nascimento',
-        'faixa',
-        'id_status',
+        'sexo',
+        'endereco',
+        'telefone',
+        'responsavel_nome',
+        'responsavel_cpf',
+        'problemas_saude',
+        'plano',
+        'status',
     ];
 
     /**
-     * Define os tipos de atributos que devem ser convertidos.
-     *
-     * @var array<string, string>
+     * RELACIONAMENTOS
      */
-    protected $casts = [
-        'data_nascimento' => 'date', // Converte para um objeto Carbon (data)
-    ];
 
     /**
-     * Um Aluno pertence a um Status (Adimplente, Inadimplente, etc.).
+     * Relacionamento 1 para Muitos: Um aluno possui várias mensalidades.
      */
-    public function status(): BelongsTo
+    public function mensalidades()
     {
-        return $this->belongsTo(StatusAluno::class, 'id_status');
+        return $this->hasMany(Mensalidade::class, 'aluno_id');
     }
 
     /**
-     * Um Aluno pode ter várias Matrículas (histórico).
+     * Relacionamento 1 para Muitos: Um aluno possui várias faixas no seu histórico.
      */
-    public function matriculas(): HasMany
+    public function faixas()
     {
-        return $this->hasMany(Matricula::class, 'id_aluno');
+        return $this->hasMany(AlunoFaixa::class, 'aluno_id');
+    }
+
+    /**
+     * LÓGICA DE NEGÓCIO (Boot)
+     */
+    protected static function booted()
+    {
+        /**
+         * Evento "creating": Executa antes do aluno ser salvo no banco.
+         * Aqui geramos o número de matrícula automático de 6 dígitos.
+         */
+        static::creating(function ($aluno) {
+            do {
+                // Gera um número aleatório entre 000001 e 999999
+                $numeroMatricula = str_pad(mt_rand(1, 999999), 6, '0', STR_PAD_LEFT);
+                
+                // Verifica se já existe um aluno com esse número para evitar duplicados
+            } while (static::where('matricula', $numeroMatricula)->exists());
+
+            $aluno->matricula = $numeroMatricula;
+        });
+    }
+
+    /**
+     * ACESSOR (Opcional)
+     * Exemplo: Para formatar a data de nascimento ao exibir
+     */
+    public function getDataNascimentoFormatadaAttribute()
+    {
+        return date('d/m/Y', strtotime($this->data_nascimento));
     }
 }
